@@ -9,6 +9,8 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
+import android.os.Parcel;
+import android.provider.SyncStateContract;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -87,23 +89,31 @@ public class USBHostActivity extends AppCompatActivity implements Observer {
     }
 
     private void connectAndSend(UsbDevice device) {
-        final byte[] bytes = new String("Hello there").getBytes();
-        final int TIMEOUT = 5;
+        final byte[] bytes = new byte[]{0x2, 0xd,0x0, 0x0};
+        final int TIMEOUT = 1000;
         final boolean forceClaim = true;
 
-        UsbInterface intf = device.getInterface(0);
+        UsbInterface intf = device.getInterface(1);
+        Log.d(TAG, "InterfaceCount = " + device.getInterfaceCount());
         final UsbEndpoint endpoint = intf.getEndpoint(0);
         final UsbDeviceConnection connection = mUsbManager.openDevice(device);
-        connection.claimInterface(intf, forceClaim);
-        Thread t = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                connection.bulkTransfer(endpoint, bytes, bytes.length, TIMEOUT); //do in another thread
-                Log.d(TAG, "Data Sent");
-            }
-        });
-        t.start();
+        // connection.claimInterface(intf, forceClaim);
+        initStringControlTransfer(connection, 0, "quandoo", TIMEOUT); // MANUFACTURER
+        initStringControlTransfer(connection, 1, "Android2AndroidAccessory", TIMEOUT); // MODEL
+        initStringControlTransfer(connection, 2, "showcasing android2android USB communication", TIMEOUT); // DESCRIPTION
+        initStringControlTransfer(connection, 3, "0.1", TIMEOUT); // VERSION
+        initStringControlTransfer(connection, 4, "http://quandoo.de", TIMEOUT); // URI
+        initStringControlTransfer(connection, 5, "42", TIMEOUT); // SERIAL
 
+        connection.controlTransfer(0x40, 53, 0, 0, new byte[]{}, 0, TIMEOUT);
 
+        connection.close();
+
+    }
+
+    private void initStringControlTransfer(final UsbDeviceConnection deviceConnection,
+                                           final int index,
+                                           final String string, final int TIMEOUT) {
+        deviceConnection.controlTransfer(0x40, 52, 0, index, string.getBytes(), string.length(), TIMEOUT);
     }
 }

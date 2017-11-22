@@ -11,21 +11,31 @@ import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
 import android.os.BatteryManager;
+import android.os.ParcelFileDescriptor;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.Toast;
 
+import java.io.FileDescriptor;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Observable;
 import java.util.Observer;
 
 import static com.pagatodo.mcardenas.accessory.UsbObservable.ACTION_USB_PERMISSION;
 
-public class AccessoryActivity extends AppCompatActivity implements Observer {
+public class AccessoryActivity extends AppCompatActivity {
 
     private final static String TAG = "AccessoryAct";
 
     private UsbObservable usbObservable;
     private UsbManager mUsbManager;
+    private ParcelFileDescriptor fileDescriptor;
+    private FileInputStream inStream;
+    private FileOutputStream outStream;
     private PendingIntent mPermissionIntent;
 
     @Override
@@ -33,62 +43,41 @@ public class AccessoryActivity extends AppCompatActivity implements Observer {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_accessory);
 
-        usbObservable = new UsbObservable();
-        usbObservable.addObserver(this);
-
         mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        UsbAccessory[] accessoryList = mUsbManager.getAccessoryList();
+
+        if(accessoryList == null || accessoryList.length == 0){
+            Log.d(TAG, "No hay dispositivos conectados");
+        }else{
+            openAccessory(accessoryList[0]);
+        }
+
+    }
+
+    private void openAccessory(UsbAccessory accessory) {
+
+        fileDescriptor = mUsbManager.openAccessory(accessory);
+
+        if(fileDescriptor != null){
+            FileDescriptor fd = fileDescriptor.getFileDescriptor();
+            inStream = new FileInputStream(fd);
+            outStream = new FileOutputStream(fd);
+            Toast.makeText(this, "USB OK: conectado", Toast.LENGTH_SHORT).show();
+        }else{
+            Toast.makeText(this, "USB Error: no se pudo conectar", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "USB Error: no se pudo conectar");
+        }
+
 
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-
-        IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
-        filter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
-        filter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
-        filter.addAction(UsbManager.ACTION_USB_ACCESSORY_ATTACHED);
-        filter.addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED);
-        registerReceiver(usbObservable.getUsbReceiver(), filter);
     }
 
     @Override
     protected void onDestroy() {
-
-        unregisterReceiver(usbObservable.getUsbReceiver());
-
         super.onDestroy();
-    }
-
-    @Override
-    public void update(Observable observable, Object o) {
-        UsbObservable.UsbState usbState = (UsbObservable.UsbState)o;
-
-
-        if( usbState.state.equals(UsbObservable.USB_STATE_ATTACHED)){
-
-            // Solicita permiso para utilizar el dispositivo conectado via usb
-            Log.d(TAG, UsbObservable.USB_STATE_ATTACHED );
-            mUsbManager.requestPermission( usbState.device , mPermissionIntent);
-
-        }else if(usbState.state.equals(UsbObservable.USB_STATE_DETACHED)) {
-
-            Log.d(TAG, UsbObservable.USB_STATE_DETACHED );
-
-        }else if(usbState.state.equals(UsbObservable.USB_STATE_GRANTED)) {
-
-            Log.d(TAG, UsbObservable.USB_STATE_GRANTED );
-            connectAndSend(usbState.device);
-
-        }else if(usbState.state.equals(UsbObservable.USB_STATE_DENIED)) {
-
-            Log.d(TAG, UsbObservable.USB_STATE_DENIED );
-
-        }
-    }
-
-
-    private void connectAndSend(UsbAccessory device) {
-
     }
 }
