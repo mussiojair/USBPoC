@@ -4,6 +4,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
@@ -14,24 +15,36 @@ import android.provider.SyncStateContract;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.Toast;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static android.hardware.usb.UsbConstants.USB_DIR_IN;
 
 public class USBHostActivity extends AppCompatActivity implements Observer {
 
     private final static String TAG = "USBHostTAG";
+    private final static int BUFFER_SIZE_IN_BYTES = 256;
+    private final static int USB_TIMEOUT_IN_MS = 100;
 
-    private final String ACTION_USB_PERMISSION = "com.pagatodo.ACTION_USB_PERMISSION";
     private UsbManager mUsbManager;
     private PendingIntent mPermissionIntent;
     private UsbObservable usbObservable;
+
+    private UsbEndpoint endpointIn;
+    private UsbEndpoint endpointOut;
+
+    private final AtomicBoolean keepThreadAlive = new AtomicBoolean(true);
+    private final List<String> sendBuffer = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_usbhost);
-
 
         mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
         mPermissionIntent = PendingIntent.getBroadcast(this,0, new Intent(UsbObservable.ACTION_USB_PERMISSION), 0 );
@@ -59,7 +72,7 @@ public class USBHostActivity extends AppCompatActivity implements Observer {
 
     @Override
     public void update(Observable observable, Object o) {
-        UsbObservable.UsbState usbState = (UsbObservable.UsbState)o;
+        final UsbObservable.UsbState usbState = (UsbObservable.UsbState)o;
         Log.d(TAG, usbState.device.getProductName() + " - " +
                 usbState.device.getVendorId() + " - " +
                 usbState.device.getManufacturerName() + " - " +
@@ -79,7 +92,13 @@ public class USBHostActivity extends AppCompatActivity implements Observer {
         }else if(usbState.state.equals(UsbObservable.USB_STATE_GRANTED)) {
 
             Log.d(TAG, UsbObservable.USB_STATE_GRANTED );
-            connectAndSend(usbState.device);
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    connectAndSend(usbState.device);
+                }
+            }).start();
+
 
         }else if(usbState.state.equals(UsbObservable.USB_STATE_DENIED)) {
 
@@ -89,24 +108,78 @@ public class USBHostActivity extends AppCompatActivity implements Observer {
     }
 
     private void connectAndSend(UsbDevice device) {
-        final byte[] bytes = new byte[]{0x2, 0xd,0x0, 0x0};
         final int TIMEOUT = 1000;
-        final boolean forceClaim = true;
 
         UsbInterface intf = device.getInterface(1);
-        Log.d(TAG, "InterfaceCount = " + device.getInterfaceCount());
-        final UsbEndpoint endpoint = intf.getEndpoint(0);
-        final UsbDeviceConnection connection = mUsbManager.openDevice(device);
-        // connection.claimInterface(intf, forceClaim);
-        initStringControlTransfer(connection, 0, "quandoo", TIMEOUT); // MANUFACTURER
-        initStringControlTransfer(connection, 1, "Android2AndroidAccessory", TIMEOUT); // MODEL
-        initStringControlTransfer(connection, 2, "showcasing android2android USB communication", TIMEOUT); // DESCRIPTION
-        initStringControlTransfer(connection, 3, "0.1", TIMEOUT); // VERSION
-        initStringControlTransfer(connection, 4, "http://quandoo.de", TIMEOUT); // URI
-        initStringControlTransfer(connection, 5, "42", TIMEOUT); // SERIAL
 
+        Log.d(TAG, "InterfaceCount = " + device.getInterfaceCount());
+
+        final UsbDeviceConnection connection = mUsbManager.openDevice(device);
+        final boolean claimResult = connection.claimInterface(intf, true);
+
+        if (connection == null) {
+            onDebug("No se pudo establecer la conexión usb");
+            return;
+        }
+        initStringControlTransfer(connection, 0, "pagatodo", TIMEOUT); // MANUFACTURER
+        initStringControlTransfer(connection, 1, "usb2musb", TIMEOUT); // MODEL
+        initStringControlTransfer(connection, 2, "USB communication", TIMEOUT); // DESCRIPTION
+        initStringControlTransfer(connection, 3, "0.23", TIMEOUT); // VERSION
+        initStringControlTransfer(connection, 4, "http://pagatodo.com", TIMEOUT); // URI
+        initStringControlTransfer(connection, 5, "42", TIMEOUT); // SERIAL
         connection.controlTransfer(0x40, 53, 0, 0, new byte[]{}, 0, TIMEOUT);
 
+
+        UsbInterface usbInterface = device.getInterface(0);
+
+        for( int i = 0 ; i < usbInterface.getEndpointCount(); i++){
+            final UsbEndpoint ep = device.getInterface(0).getEndpoint(i);
+
+
+            if( ep.getDirection() == UsbConstants.USB_DIR_IN ) {
+                endpointIn = ep;
+            } else if ( ep.getDirection() == UsbConstants.USB_DIR_OUT ){
+                endpointOut = ep;
+            }
+        }
+
+        if (endpointIn == null) {
+            onDebug("Input Endpoint not found");
+            return;
+        }
+
+        if (endpointOut == null) {
+            onDebug("Output Endpoint not found");
+            return;
+        }
+
+        if( !claimResult ){
+            onDebug("No se pudo reclamar la interfaz");
+            connection.close();
+        }else{
+
+            final byte buff[] = new byte[BUFFER_SIZE_IN_BYTES];
+            onDebug("Claimed interface - ready to communicate");
+
+            while (keepThreadAlive.get()) {
+
+                final int bytesTransferred = connection.bulkTransfer(endpointIn, buff, buff.length, USB_TIMEOUT_IN_MS);
+                if (bytesTransferred > 0) {
+                    onDebug("device> "+new String(buff, 0, bytesTransferred));
+                }
+
+                synchronized (sendBuffer) {
+                    if ( sendBuffer.size() > 0 ) {
+                        final byte[] sendBuff = sendBuffer.get(0).toString().getBytes();
+                        connection.bulkTransfer(endpointOut, sendBuff, sendBuff.length, USB_TIMEOUT_IN_MS);
+                        onDebug("Enviado... " + new String(sendBuff));
+                        sendBuffer.remove(0);
+                    }
+                }
+            }
+        }
+
+        connection.releaseInterface(intf);
         connection.close();
 
     }
@@ -115,5 +188,16 @@ public class USBHostActivity extends AppCompatActivity implements Observer {
                                            final int index,
                                            final String string, final int TIMEOUT) {
         deviceConnection.controlTransfer(0x40, 52, 0, index, string.getBytes(), string.length(), TIMEOUT);
+    }
+
+    private void onDebug(final String msg){
+
+        this.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(USBHostActivity.this, msg, Toast.LENGTH_SHORT).show();
+                Log.d(TAG, msg);
+            }
+        });
     }
 }
