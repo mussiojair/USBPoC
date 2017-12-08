@@ -8,7 +8,10 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/app" />
+            <option value="$PROJECT_DIR$/Host" />
+            <option value="$PROJECT_DIR$/accessory" />
+            <option value="$PROJECT_DIR$/android-to-android" />
+            <option value="$PROJECT_DIR$/droid2droid" />
           </set>
         </option>
         <option name="resolveModulePerSourceSet" value="false" />

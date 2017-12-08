@@ -19,7 +19,7 @@ public class UsbObservable extends Observable {
     private final static String TAG = "UsbObservable";
 
     // Action of interest
-    public final static String ACTION_USB_PERMISSION = "com.pagatodo.ACTION_USB_PERMISSION";
+    public final static String ACTION_USB_PERMISSION = "com.pagatodo.ACTION_USB_PERMISSION_HOST";
     public final static String USB_STATE_ATTACHED = "com.pagatodo.ACTION_USB_ATTACHED";
     public final static String USB_STATE_DETACHED = "com.pagatodo.ACTION_USB_DETACHED";
     public final static String USB_STATE_GRANTED = "com.pagatodo.ACTION_USB_GRANTED";

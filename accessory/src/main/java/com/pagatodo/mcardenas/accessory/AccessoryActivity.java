@@ -21,6 +21,9 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
+import com.zobot.androidtoandroid.CommunicationConfig;
+import com.zobot.androidtoandroid.CommunicationType;
+
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -52,6 +55,7 @@ public class AccessoryActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        CommunicationConfig.init(this, CommunicationType.USB_ACCESSORY);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_accessory);
 
@@ -63,33 +67,36 @@ public class AccessoryActivity extends AppCompatActivity {
                 send(new Date().toString().getBytes());
             }
         });
-
-        mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
-        UsbAccessory[] accessoryList = mUsbManager.getAccessoryList();
-
-        if(accessoryList == null || accessoryList.length == 0){
-            Log.d(TAG, "No hay dispositivos conectados");
-        }else{
-
-            if (mUsbManager.hasPermission(accessoryList[0])) {
-                openAccessory(accessoryList[0]);
-            } else {
-                onDebug("No tienes permiso para usar usb");
-                /*
-                synchronized (mUsbReceiver) {
-                    if (!mPermissionRequestPending) {
-                        mUsbManager.requestPermission(accessory,
-                                mPermissionIntent);
-                        mPermissionRequestPending = true;
-                    }
-                }*/
+        findViewById(R.id.textMain).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                CommunicationConfig.openCommunication();
             }
-        }
+        });
+//        mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+//        UsbAccessory[] accessoryList = mUsbManager.getAccessoryList();
+//
+//        if(accessoryList == null || accessoryList.length == 0){
+//            Log.d(TAG, "No hay dispositivos conectados");
+//        }else{
+//
+//            if (mUsbManager.hasPermission(accessoryList[0])) {
+//                openAccessory(accessoryList[0]);
+//            } else {
+//                onDebug("No tienes permiso para usar usb");
+//                /*
+//                synchronized (mUsbReceiver) {
+//                    if (!mPermissionRequestPending) {
+//                        mUsbManager.requestPermission(accessory,
+//                                mPermissionIntent);
+//                        mPermissionRequestPending = true;
+//                    }
+//                }*/
+//            }
+//        }
     }
 
     private void openAccessory(UsbAccessory accessory) {
-
-
         fileDescriptor = mUsbManager.openAccessory(accessory);
 
         if(fileDescriptor != null){

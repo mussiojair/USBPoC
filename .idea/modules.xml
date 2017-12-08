@@ -2,8 +2,13 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/USBPoC.iml" filepath="$PROJECT_DIR$/USBPoC.iml" />
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Host/Host.iml" filepath="$PROJECT_DIR$/Host/Host.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/USBPoC.iml" filepath="$PROJECT_DIR$/.idea/USBPoC.iml" />
+      <module fileurl="file://C:\Users\jvazquez\Desktop\AndroidStudioProjects\git\USBPoC\USBPoC.iml" filepath="C:\Users\jvazquez\Desktop\AndroidStudioProjects\git\USBPoC\USBPoC.iml" />
+      <module fileurl="file://$PROJECT_DIR$/accessory/accessory.iml" filepath="$PROJECT_DIR$/accessory/accessory.iml" />
+      <module fileurl="file://$PROJECT_DIR$/android-to-android/android-to-android.iml" filepath="$PROJECT_DIR$/android-to-android/android-to-android.iml" />
+      <module fileurl="file://C:\Users\jvazquez\Desktop\AndroidStudioProjects\git\USBPoC\app\app.iml" filepath="C:\Users\jvazquez\Desktop\AndroidStudioProjects\git\USBPoC\app\app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/droid2droid/droid2droid.iml" filepath="$PROJECT_DIR$/droid2droid/droid2droid.iml" />
     </modules>
   </component>
 </project>
